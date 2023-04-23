@@ -23,9 +23,7 @@ def register_user():
         return register_user()
 
     master_password = getpass("Enter your master password: ")
-    master_password_hash = bcrypt.hashpw(
-        master_password.encode(), bcrypt.gensalt()
-    )
+    master_password_hash = bcrypt.hashpw(master_password.encode(), bcrypt.gensalt())
 
     db["users"].insert_one(
         {"user_id": user_id, "master_password": master_password_hash}
@@ -96,7 +94,7 @@ collection = db["passwords_{}".format(user_id)]
 
 
 # Function to generate a random password
-def generate_random_password():
+def generate_random_password(length):
     length = int(input("Enter the desired password length: "))
     nums = input("Include numbers? (y/n): ").lower() == "y"
     chars = input("Include special characters? (y/n): ").lower() == "y"
@@ -147,12 +145,13 @@ def store_password(master_password):
 
     # Prompt user for password or generate a random one
     password_choice = input(
-        "Enter 'c' to create a password or 'g' to generate one: "
+        "Enter 'e' to enter a password or 'g' to generate one: "
     ).lower()
-    if password_choice == "c":
+    if password_choice == "e":
         password = getpass("Enter the password: ")
     elif password_choice == "g":
-        password = generate_random_password()
+        length = int(input("Enter the desired password length: "))
+        password = generate_random_password(length)
 
         # Ask user if they want to print the generated password
         print_choice = input(
@@ -202,48 +201,54 @@ def store_password(master_password):
 
 
 def retrieve_password():
-    # Prompt the user for the master password
-    password = getpass("Please re-enter the master password: ")
+    attempts = 3
+    while attempts > 0:
+        # Prompt the user for the master password
+        password = getpass("Please re-enter the master password: ")
 
-    if password == master_password:
-        # Get the password label from the user
-        label = input(
-            "Enter the label of the password you would like to retrieve: "
-        )
+        hashed_master_password = db["users"].find_one({"user_id": user_id})[
+            "master_password"
+        ]
 
-        # Find the document that matches the username and label
-        result = collection.find_one({"label": label})
+        if bcrypt.checkpw(password.encode(), hashed_master_password):
+            print("Login successful")
+            break
+        else:
+            attempts -= 1
+            if attempts > 0:
+                print(f"Incorrect password, {attempts} attempts remaining.")
+            else:
+                print("Too many login attempts, quitting...")
+                exit()
 
-        # Check if a matching document was found
-        if not result:
-            print("Error: Password not found.")
-            return
+    # Get the password label from the user
+    label = input("Enter the label of the password you would like to retrieve: ")
 
-        # Get the encrypted password and salt from the document
-        encrypted_password = result["password"]
-        salt = result["salt"]
+    # Find the document that matches the username and label
+    result = collection.find_one({"label": label})
 
-        # Derive the key for AES decryption using PBKDF2
-        key = PBKDF2(password.encode(), salt, dkLen=32)
+    # Check if a matching document was found
+    if not result:
+        print("Error: Password not found.")
+        return
 
-        # Decrypt the password
-        plaintext_password = decrypt_password(encrypted_password, key).decode(
-            "utf-8"
-        )
+    # Get the encrypted password and salt from the document
+    encrypted_password = result["password"]
+    salt = result["salt"]
 
-        # Display the decrypted password using getpass
-        print("Decrypted password for label '{}':".format(label))
-        _ = getpass(
-            prompt="Press enter to retrieve the password, for security it will not be shown on the screen"
-        )
-        print(
-            "\nThe password is in the clipboard, you can paste it where needed."
-        )
-        pyperclip.copy(plaintext_password)
+    # Derive the key for AES decryption using PBKDF2
+    key = PBKDF2(password.encode(), salt, dkLen=32)
 
-    else:
-        print("Password is incorrect")
-        exit()
+    # Decrypt the password
+    plaintext_password = decrypt_password(encrypted_password, key).decode("utf-8")
+
+    # Display the decrypted password using getpass
+    print("Decrypted password for label '{}':".format(label))
+    _ = getpass(
+        prompt="Press enter to retrieve the password, for security it will not be shown on the screen"
+    )
+    print("\nThe password is in the clipboard, you can paste it where needed.")
+    pyperclip.copy(plaintext_password)
 
 
 # Main program loop
