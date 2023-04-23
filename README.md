@@ -2,7 +2,7 @@
 
 A simple command-line password manager using Python, MongoDB, and encryption.
 
-Following on from my recent take on [password generators](https://github.com/siwhelan/pass_gen) | [(Live Demo)](https://pass-gen-gray.vercel.app/), this is adeeper dive into encryption, password management and storage - something that I've long had an interest in! 
+Following on from my recent take on [password generators](https://github.com/siwhelan/pass_gen) | [(Live Demo)](https://pass-gen-gray.vercel.app/), this is a deeper dive into encryption, password management and storage - something that I've long had an interest in! 
 
 This program uses MongoDB to store the passwords, AES encryption to securely store them, and bcrypt for hashing.
 
